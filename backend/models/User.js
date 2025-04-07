@@ -41,12 +41,13 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please provide an email'],
     unique: true,
-    lowercase: true, // Store emails consistently
+    lowercase: true,
     match: [
-      /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
+      // --- Use this updated Regex ---
+      /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.[a-zA-Z]{2,})$/,
       'Please provide a valid email'
     ],
-    index: true // Add index for faster email lookups
+    index: true
   },
   password: {
     type: String,
