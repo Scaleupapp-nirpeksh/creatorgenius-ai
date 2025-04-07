@@ -62,5 +62,52 @@ export const getCurrentUserApi = async (token: string): Promise<User> => {
   }
 };
 
-// --- Add other API functions here as needed (e.g., for content ideation, analytics) ---
-// Example: Add a function to pass the token for protected endpoints automatically using interceptors (more advanced)
+/// --- Add function for content ideation ---
+export interface Idea {
+    title: string;
+    angle: string;
+    tags: string[];
+    hook?: string;
+    structure_points?: string[];
+    platform_suitability?: 'High' | 'Medium' | 'Low';
+    intendedEmotion?: string;
+}
+
+interface IdeationInput {
+    topic?: string;
+    keywords?: string[];
+    platform?: string;
+    language?: string;
+    niche?: string;
+    tone?: string;
+    targetAudienceDetails?: string;
+    numberOfIdeas?: number;
+    emotionalGoal?: string;
+    keyTakeaway?: string;
+    targetAudiencePainPoint?: string;
+}
+
+interface IdeationResponse {
+    success: boolean;
+    message: string;
+    data: Idea[]; // Array of ideas
+    // Include potentially raw_content or details on error
+    raw_content?: string;
+    details?: any;
+}
+
+export const generateIdeasApi = async (input: IdeationInput, token: string): Promise<IdeationResponse> => {
+  try {
+    const response = await apiClient.post('/content/ideation', input, {
+      headers: {
+        Authorization: `Bearer ${token}`, // Add token to header
+      },
+    });
+    // Assuming backend sends { success: true, message: '...', data: [...] } on success
+    return response.data as IdeationResponse;
+  } catch (error: any) {
+    console.error('API Generate Ideas Error:', error.response?.data || error.message);
+    // Rethrow the error data structure sent by the backend on failure
+    throw error.response?.data || new Error('Failed to generate ideas');
+  }
+};
