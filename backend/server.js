@@ -5,7 +5,7 @@ const cors = require('cors'); // <-- Require cors
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
 const contentRoutes = require('./routes/content');
-
+const ideaRoutes = require('./routes/ideas');
 // Connect to Database
 connectDB();
 
@@ -33,6 +33,7 @@ app.use(express.json()); // Middleware to parse JSON bodies
 // --- Mount API Routes ---
 app.use('/api/auth', authRoutes); 
 app.use('/api/content', contentRoutes);
+app.use('/api/ideas', ideaRoutes);
 
 // Basic route (optional)
 app.get('/', (req, res) => {
