@@ -1,9 +1,10 @@
 // frontend/src/app/(protected)/layout.tsx
-"use client"; // This layout component needs to use client-side hooks
+"use client";
 
 import React, { useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext'; // Adjust path if needed
+import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import NavHeader from '@/components/NavHeader';
 
 export default function ProtectedLayout({
   children,
@@ -14,28 +15,41 @@ export default function ProtectedLayout({
   const router = useRouter();
 
   useEffect(() => {
-    // Optional: Re-check auth status in case the context hasn't updated yet
-    // This might be redundant if checkAuthStatus runs correctly on initial load in AuthProvider
-    // checkAuthStatus();
-
-    // If loading is finished and the user is not authenticated, redirect
     if (!isLoading && !isAuthenticated) {
       console.log("ProtectedLayout: Not authenticated, redirecting to login.");
       router.push('/login');
     }
-  }, [isLoading, isAuthenticated, router]); // Dependencies for the effect
+  }, [isLoading, isAuthenticated, router]);
 
-  // While loading, show a loading indicator (or nothing)
+  // While loading, show a loading indicator
   if (isLoading) {
-    return <div className="flex justify-center items-center min-h-screen">Loading authentication status...</div>; // Or a proper spinner component
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <div className="spinner h-8 w-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p>Loading authentication status...</p>
+        </div>
+      </div>
+    );
   }
 
-  // If authenticated, render the actual page content
+  // If authenticated, render the actual page content with the navigation header
   if (isAuthenticated) {
-    return <>{children}</>; // Render the child page (e.g., Dashboard)
+    return (
+      <>
+        <NavHeader />
+        {children}
+      </>
+    );
   }
 
   // If not loading and not authenticated, theoretically the redirect is happening.
-  // Return null or a loading indicator to avoid flashing content before redirect completes.
-  return <div className="flex justify-center items-center min-h-screen">Redirecting to login...</div>;
+  return (
+    <div className="flex justify-center items-center min-h-screen">
+      <div className="text-center">
+        <div className="spinner h-8 w-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+        <p>Redirecting to login...</p>
+      </div>
+    </div>
+  );
 }
