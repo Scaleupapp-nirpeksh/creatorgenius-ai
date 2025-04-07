@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors'); // <-- Require cors
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
+const contentRoutes = require('./routes/content');
 
 // Connect to Database
 connectDB();
@@ -30,7 +31,8 @@ app.use(cors(corsOptions)); // <-- Use cors middleware with options
 app.use(express.json()); // Middleware to parse JSON bodies
 
 // --- Mount API Routes ---
-app.use('/api/auth', authRoutes); // Mount auth routes
+app.use('/api/auth', authRoutes); 
+app.use('/api/content', contentRoutes);
 
 // Basic route (optional)
 app.get('/', (req, res) => {
