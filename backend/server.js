@@ -1,17 +1,19 @@
 // backend/server.js
 require('dotenv').config();
 const express = require('express');
-const cors = require('cors'); // <-- Require cors
+const cors = require('cors');
 const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
 const contentRoutes = require('./routes/content');
 const ideaRoutes = require('./routes/ideas');
+const calendarRoutes = require('./routes/calendar'); // Add calendar routes
+
 // Connect to Database
 connectDB();
 
 const app = express();
 
-// --- Configure CORS ---
+// Configure CORS
 const allowedOrigins = ['http://localhost:3000']; // Add your deployed frontend URL later
 const corsOptions = {
   origin: function (origin, callback) {
@@ -25,23 +27,32 @@ const corsOptions = {
   },
   credentials: true // Optional: If you need to send cookies or authorization headers
 };
-app.use(cors(corsOptions)); // <-- Use cors middleware with options
+app.use(cors(corsOptions));
 
-// --- Other Middleware ---
-app.use(express.json()); // Middleware to parse JSON bodies
+// Middleware
+app.use(express.json());
 
-// --- Mount API Routes ---
-app.use('/api/auth', authRoutes); 
+// Mount API Routes
+app.use('/api/auth', authRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/ideas', ideaRoutes);
+app.use('/api/calendar', calendarRoutes); // Mount calendar routes
 
-// Basic route (optional)
+// Basic route
 app.get('/', (req, res) => {
   res.send('CreatorGenius AI API Running!');
 });
 
-// --- Server Listener ---
+// Server Listener
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
-// Optional: Add basic error handling middleware later
+// Optional: Add basic error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    success: false,
+    message: 'Server Error',
+    error: process.env.NODE_ENV === 'development' ? err.message : undefined
+  });
+});
