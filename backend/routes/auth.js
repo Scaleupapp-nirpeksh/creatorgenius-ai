@@ -1,11 +1,12 @@
 // backend/routes/auth.js
 const express = require('express');
-const { registerUser } = require('../controllers/authController'); // Import controller function
+const { registerUser, loginUser } = require('../controllers/authController'); // Import controller function
 
 const router = express.Router();
 
-// Define the registration route: POST request to /api/auth/register
+
 router.post('/register', registerUser);
+router.post('/login', loginUser);
 
 // --- We will add login route here later ---
 

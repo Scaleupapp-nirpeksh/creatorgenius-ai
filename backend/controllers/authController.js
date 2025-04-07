@@ -62,4 +62,49 @@ exports.registerUser = async (req, res, next) => {
   }
 };
 
-// --- We will add loginUser function here later ---
+// --- ADD LOGIN FUNCTION BELOW ---
+
+// @desc    Authenticate user & get token (Login)
+// @route   POST /api/auth/login
+// @access  Public
+exports.loginUser = async (req, res, next) => {
+    const { email, password } = req.body;
+  
+    try {
+      // 1. Validate input
+      if (!email || !password) {
+        return res.status(400).json({ success: false, message: 'Please provide email and password' });
+      }
+  
+      // 2. Check for user by email - IMPORTANT: Select the password field explicitly
+      const user = await User.findOne({ email: email.toLowerCase() }).select('+password');
+  
+      // 3. If user not found or password doesn't match
+      // Use a generic error message for security (don't reveal if email exists)
+      if (!user || !(await user.comparePassword(password))) {
+         return res.status(401).json({ success: false, message: 'Invalid credentials' }); // 401 Unauthorized
+      }
+  
+      // --- User is found and password is correct ---
+  
+      // 4. (Optional) Update last login timestamp
+      user.lastLoginAt = Date.now();
+      await user.save({ validateBeforeSave: false }); // Save without running all validators again
+  
+      // 5. Generate JWT token
+      const token = generateToken(user._id);
+  
+      // 6. Send success response with token
+      res.status(200).json({
+        success: true,
+        message: 'Login successful',
+        token: token,
+        // Optionally send back some user info (excluding sensitive fields)
+        // user: { id: user._id, name: user.name, email: user.email, role: user.role }
+      });
+  
+    } catch (error) {
+      console.error('Login Error:', error); // Log the error
+      res.status(500).json({ success: false, message: 'Server Error during login' });
+    }
+  };
