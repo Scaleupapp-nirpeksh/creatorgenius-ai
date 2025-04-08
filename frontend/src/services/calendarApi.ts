@@ -1,5 +1,5 @@
 // frontend/src/services/calendarApi.ts
-import axios from 'axios';
+import { apiClient } from './api';
 
 export interface ScheduledIdea {
   _id?: string;
