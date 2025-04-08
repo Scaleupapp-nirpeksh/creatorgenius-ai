@@ -6,7 +6,8 @@ const connectDB = require('./config/db');
 const authRoutes = require('./routes/auth');
 const contentRoutes = require('./routes/content');
 const ideaRoutes = require('./routes/ideas');
-const calendarRoutes = require('./routes/calendar'); // Add calendar routes
+const calendarRoutes = require('./routes/calendar');
+const userRoutes  = require('./routes/users');
 
 // Connect to Database
 connectDB();
@@ -36,7 +37,8 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/api/ideas', ideaRoutes);
-app.use('/api/calendar', calendarRoutes); // Mount calendar routes
+app.use('/api/calendar', calendarRoutes); 
+app.use('/api/users', userRoutes); 
 
 // Basic route
 app.get('/', (req, res) => {

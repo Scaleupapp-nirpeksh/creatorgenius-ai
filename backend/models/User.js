@@ -2,36 +2,33 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs'); // For password hashing
 
+// Optional: Helper function for array size validation
+function limitArray(limit) {
+    // Returns a validation function
+    return function(val) {
+        // Allows empty array or array up to the specified limit
+        return !val || val.length <= limit;
+    };
+}
+
+// Schema for connected social media accounts (if used)
 const connectedAccountSchema = new mongoose.Schema({
-  platform: { // e.g., 'youtube', 'instagram', 'moj'
+  platform: {
     type: String,
     required: true,
-    enum: ['youtube', 'instagram', 'facebook', 'moj', 'sharechat', 'twitter', 'linkedin'] // Add more as needed
+    enum: ['youtube', 'instagram', 'facebook', 'moj', 'sharechat', 'twitter', 'linkedin']
   },
-  platformUserId: { // The user's ID on that platform (e.g., YouTube Channel ID)
-    type: String,
-    required: true
-  },
-  accessToken: { // Store encrypted token
-    type: String,
-    required: true
-  },
-  refreshToken: { // Store encrypted token, if applicable
-    type: String
-  },
-  tokenExpiry: {
-    type: Date
-  },
-  profileInfo: { // Optional: Store basic profile info like name/handle from the platform
-      type: mongoose.Schema.Types.Mixed
-  },
-  connectedAt: {
-    type: Date,
-    default: Date.now
-  }
-}, {_id: false}); // Prevent Mongoose from creating an _id for each connected account
+  platformUserId: { type: String, required: true },
+  accessToken: { type: String, required: true }, // Store encrypted
+  refreshToken: { type: String }, // Store encrypted
+  tokenExpiry: { type: Date },
+  profileInfo: { type: mongoose.Schema.Types.Mixed },
+  connectedAt: { type: Date, default: Date.now }
+}, {_id: false});
 
+// Main User Schema
 const userSchema = new mongoose.Schema({
+  // --- Basic Info ---
   name: {
     type: String,
     required: [true, 'Please provide a name'],
@@ -40,94 +37,107 @@ const userSchema = new mongoose.Schema({
   email: {
     type: String,
     required: [true, 'Please provide an email'],
-    unique: true,
-    lowercase: true,
-    match: [
-      // --- Use this updated Regex ---
-      /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.[a-zA-Z]{2,})$/,
-      'Please provide a valid email'
-    ],
-    index: true
+    unique: true, // Ensures no two users have the same email
+    lowercase: true, // Stores email in lowercase for consistency
+    match: [ /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.[a-zA-Z]{2,})$/, 'Please provide a valid email'],
+    index: true // Improves query performance for email lookups
   },
   password: {
     type: String,
     required: [true, 'Please provide a password'],
-    minlength: 8, // Increased minimum length for better security
-    select: false // Automatically exclude password field from query results by default
+    minlength: [8, 'Password must be at least 8 characters long'],
+    select: false // Prevents password from being sent back in queries by default
   },
   profilePictureUrl: {
     type: String,
-    default: '' // Or a default avatar URL
+    default: '' // URL to the user's avatar
   },
+
+  // --- Subscription & Payment ---
   subscriptionTier: {
     type: String,
-    enum: ['free', 'creator_pro', 'agency_growth'], // Matches your revenue model
+    enum: ['free', 'creator_pro', 'agency_growth'],
     default: 'free'
   },
   subscriptionStatus: {
     type: String,
     enum: ['active', 'inactive', 'past_due', 'cancelled', 'trialing'],
-    default: 'active' // Assuming 'free' tier is active by default
+    default: 'active'
   },
-  paymentGatewayCustomerId: { // e.g., Stripe or Razorpay customer ID
+  paymentGatewayCustomerId: { // ID from Stripe, Razorpay etc.
     type: String,
-    index: true // Index for quick lookups if needed
+    index: true
   },
-  subscriptionEndDate: { // When the current paid period ends (for pro/agency)
+  subscriptionEndDate: { // When the current paid period ends
       type: Date
   },
-  connectedAccounts: [connectedAccountSchema], // Array to store linked social accounts
-  preferences: {
-    defaultLanguage: { type: String, default: 'en' }, // Default content language preference
-    // Add other preferences as needed
+
+  // --- App Specific Data ---
+  connectedAccounts: [connectedAccountSchema], // Linked social media accounts
+  interests: { // For personalized news/content suggestions
+      type: [String],
+      default: [],
+      validate: [limitArray(15), 'Cannot exceed 15 interests'] // Limit to 15 interests
   },
-  // --- Usage Tracking (for Freemium limits) ---
-  usage: {
-    ideationsThisMonth: { type: Number, default: 0 },
-    seoReportsThisMonth: { type: Number, default: 0 },
-    lastUsageReset: { type: Date, default: Date.now } // Track when usage was last reset
+  preferences: { // General user preferences
+      newsSources: { type: [String], default: [] }, // Preferred news websites
+      preferredNewsLanguage: { type: String, default: 'en' } // e.g., 'en', 'hi', 'kn'
+      // Add other preferences like default AI tone, etc.
   },
-  // --- Security & Access ---
+  usage: { // Tracking feature usage
+      // --- Existing Tracking ---
+      ideationsThisMonth: { type: Number, default: 0 },
+      refinementsThisMonth: { type: Number, default: 0 },
+      seoReportsThisMonth: { type: Number, default: 0 }, // Placeholder
+      // -- When was usage last reset (e.g., start of month/billing cycle)? --
+      lastUsageReset: { type: Date, default: Date.now },
+
+      // --- Search Tracking ---
+      dailySearchCount: { type: Number, default: 0 }, // Searches used today
+      // -- When was the daily search count last reset? --
+      lastSearchReset: { type: Date, default: Date.now }
+  },
+
+  // --- Role & Permissions ---
   role: {
     type: String,
-    enum: ['user', 'admin', 'agency_owner'], // Basic roles
+    enum: ['user', 'admin'], // Define available roles
     default: 'user'
   },
-  agencyId: { // If the user belongs to an agency (links to a potential future Agency model)
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Agency' // Assuming an 'Agency' model might exist later
-  },
-  isVerified: { // For email verification
+  // agencyId: { // Link to an Agency model if implementing agency features
+  //     type: mongoose.Schema.Types.ObjectId,
+  //     ref: 'Agency'
+  // },
+
+  // --- Account Status & Security ---
+  isVerified: { // For email verification status
     type: Boolean,
     default: false
   },
-  verificationToken: String,
-  verificationExpires: Date,
-  passwordResetToken: String,
-  passwordResetExpires: Date,
-  lastLoginAt: {
+  verificationToken: String, // Token sent in verification email
+  verificationExpires: Date, // Expiry for the verification token
+  passwordResetToken: String, // Token sent for password reset
+  passwordResetExpires: Date, // Expiry for the password reset token
+  lastLoginAt: { // Timestamp of the last successful login
       type: Date
   }
 }, {
-  timestamps: true // Automatically adds createdAt and updatedAt fields
+  // --- Schema Options ---
+  timestamps: true // Automatically adds `createdAt` and `updatedAt` fields
 });
 
 // --- Mongoose Middleware ---
 
-// Hash password BEFORE saving using a pre-save hook
+// Hash password automatically BEFORE saving a user document
 userSchema.pre('save', async function(next) {
-  // Only run this function if password was actually modified
+  // Only run this function if password was actually modified (or is new)
   if (!this.isModified('password')) {
     return next();
   }
-
-  // Hash the password with cost factor 12
+  // Hash the password with a cost factor (salt rounds)
   const salt = await bcrypt.genSalt(12);
   this.password = await bcrypt.hash(this.password, salt);
-
-  // Delete password confirm field if you add one for validation
-  // this.passwordConfirm = undefined;
-  next();
+  next(); // Proceed to save
 });
 
 // --- Mongoose Instance Methods ---
