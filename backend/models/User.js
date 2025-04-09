@@ -94,6 +94,7 @@ const userSchema = new mongoose.Schema({
 
     // --- Search Tracking ---
     dailySearchCount: { type: Number, default: 0 }, // Searches used today
+    dailySeoAnalyses: { type: Number, default: 0 }, // SEO Analyses performed today
     // -- When was the daily search count last reset? --
     lastSearchReset: { type: Date, default: Date.now },
 
