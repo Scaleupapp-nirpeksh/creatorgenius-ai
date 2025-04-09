@@ -100,7 +100,11 @@ const userSchema = new mongoose.Schema({
     // --- Insights Tracking ---
     insightsSavedThisMonth: { type: Number, default: 0 },
     dailyInsightsSaved: { type: Number, default: 0 },
-    lastInsightsReset: { type: Date, default: Date.now }
+    lastInsightsReset: { type: Date, default: Date.now },
+
+    // --- NEW: Trend-Based Ideation Tracking ---
+    dailyTrendIdeations: { type: Number, default: 0 } // Trend-based ideations generated today
+
 },
   // --- Role & Permissions ---
   role: {
