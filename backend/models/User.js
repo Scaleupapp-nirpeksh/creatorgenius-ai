@@ -85,19 +85,23 @@ const userSchema = new mongoose.Schema({
       // Add other preferences like default AI tone, etc.
   },
   usage: { // Tracking feature usage
-      // --- Existing Tracking ---
-      ideationsThisMonth: { type: Number, default: 0 },
-      refinementsThisMonth: { type: Number, default: 0 },
-      seoReportsThisMonth: { type: Number, default: 0 }, // Placeholder
-      // -- When was usage last reset (e.g., start of month/billing cycle)? --
-      lastUsageReset: { type: Date, default: Date.now },
+    // --- Existing Tracking ---
+    ideationsThisMonth: { type: Number, default: 0 },
+    refinementsThisMonth: { type: Number, default: 0 },
+    seoReportsThisMonth: { type: Number, default: 0 }, // Placeholder
+    // -- When was usage last reset (e.g., start of month/billing cycle)? --
+    lastUsageReset: { type: Date, default: Date.now },
 
-      // --- Search Tracking ---
-      dailySearchCount: { type: Number, default: 0 }, // Searches used today
-      // -- When was the daily search count last reset? --
-      lastSearchReset: { type: Date, default: Date.now }
-  },
+    // --- Search Tracking ---
+    dailySearchCount: { type: Number, default: 0 }, // Searches used today
+    // -- When was the daily search count last reset? --
+    lastSearchReset: { type: Date, default: Date.now },
 
+    // --- Insights Tracking ---
+    insightsSavedThisMonth: { type: Number, default: 0 },
+    dailyInsightsSaved: { type: Number, default: 0 },
+    lastInsightsReset: { type: Date, default: Date.now }
+},
   // --- Role & Permissions ---
   role: {
     type: String,

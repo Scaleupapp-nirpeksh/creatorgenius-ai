@@ -1,6 +1,7 @@
 // backend/controllers/trendsController.js
 const axios = require('axios');
 const User = require('../models/User'); // Need User model for checking limits/updating counts
+const Insight = require('../models/Insight'); // Add this for direct saving of insights
 //require('dotenv').config(); // Ensure env vars are loaded
 
 const Search_API_KEY = process.env.Search_API_KEY;
@@ -14,13 +15,63 @@ const isBeforeToday = (date) => {
     return date < today;
 };
 
+// Helper function to extract potential tags from a query
+const extractTagsFromQuery = (query) => {
+    // Simple implementation - split by spaces and take words that are 3+ chars
+    return query.split(/\s+/)
+        .filter(word => word.length >= 3)  // Only words 3+ chars
+        .filter(word => !['the', 'and', 'for', 'with', 'new'].includes(word.toLowerCase())) // Remove common words
+        .map(word => word.toLowerCase())
+        .slice(0, 5); // Limit to 5 tags
+};
+
+// Helper function to format search result as insight
+const formatAsInsight = (result, query) => {
+    // Generate a summary from the snippet
+    const summary = result.snippet || "No summary available.";
+    
+    // Extract potential tags from query and title
+    const queryTags = extractTagsFromQuery(query);
+    const titleTags = extractTagsFromQuery(result.title);
+    
+    // Combine tags and remove duplicates
+    const tags = [...new Set([...queryTags, ...titleTags])].slice(0, 8);
+    
+    // Generate key points (this is simplified - could be enhanced with AI)
+    const keyPoints = [
+        `Based on information from ${result.displayLink}`,
+        `Related to search: ${query}`
+    ];
+    
+    // Format as insight-compatible structure
+    return {
+        type: 'search_result',
+        title: result.title,
+        content: {
+            summary: summary,
+            source_details: {
+                title: result.title,
+                url: result.link,
+                published: "Recent" // This is a limitation - we don't have the exact date
+            },
+            keyPoints: keyPoints
+        },
+        source: {
+            url: result.link,
+            name: "Google Search via CreatorGenius",
+            query: query
+        },
+        tags: tags
+    };
+};
+
 // @desc    Query trends/news using Google Search API with usage limits
 // @route   POST /api/trends/query
 // @access  Private
 exports.queryTrends = async (req, res, next) => {
     const userId = req.user.id;
     const userTier = req.user.subscriptionTier; // Assuming tier is populated by 'protect'
-    const { query } = req.body;
+    const { query, saveAsInsight } = req.body; // Add saveAsInsight parameter
 
     if (!Search_API_KEY || !Search_CX) {
         console.error("Google Search API Key or CX ID is missing in environment variables.");
@@ -118,11 +169,41 @@ exports.queryTrends = async (req, res, next) => {
         }
         // --- End Increment Usage Count ---
 
+        // --- NEW: Save result as insight if requested ---
+        let savedInsight = null;
+        if (saveAsInsight && searchResults.length > 0) {
+            try {
+                // Format the first result as an insight
+                const insightData = formatAsInsight(searchResults[0], query);
+                insightData.userId = userId; // Add the user ID
+                
+                // Save to database
+                savedInsight = await Insight.create(insightData);
+                
+                // Increment insight count
+                try {
+                    await User.findByIdAndUpdate(userId, {
+                        $inc: { 'usage.insightsSavedThisMonth': 1, 'usage.dailyInsightsSaved': 1 }
+                    });
+                } catch (countError) {
+                    console.error(`Non-critical: Failed to increment insight count for user ${userId}:`, countError);
+                }
+                
+                console.log(`Saved search result as insight for user ${userId}`);
+            } catch (insightError) {
+                console.error(`Error saving search result as insight:`, insightError);
+                // Don't fail the request if insight saving fails
+            }
+        }
+        // --- End Save as Insight ---
+
+        // Include savedInsight in response if applicable
         res.status(200).json({
             success: true,
             query: query,
             count: searchResults.length,
-            data: searchResults
+            data: searchResults,
+            ...(savedInsight && { savedInsight })
         });
 
     } catch (error) {
@@ -133,5 +214,62 @@ exports.queryTrends = async (req, res, next) => {
              message = `Google API Error: ${error.response.data.error.message || 'Unknown Google API error'}`;
          }
         res.status(500).json({ success: false, message });
+    }
+};
+
+// @desc    Save a search result as an insight
+// @route   POST /api/trends/save-insight
+// @access  Private
+exports.saveSearchAsInsight = async (req, res) => {
+    try {
+        const { resultIndex, query, searchResults } = req.body;
+        
+        // Validate input
+        if (!searchResults || !Array.isArray(searchResults) || resultIndex === undefined) {
+            return res.status(400).json({
+                success: false,
+                message: 'Please provide valid searchResults array and resultIndex'
+            });
+        }
+        
+        // Ensure the index is valid
+        if (resultIndex < 0 || resultIndex >= searchResults.length) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid resultIndex'
+            });
+        }
+        
+        // Get the selected result
+        const selectedResult = searchResults[resultIndex];
+        
+        // Format as insight
+        const insightData = formatAsInsight(selectedResult, query);
+        insightData.userId = req.user._id; // Add the user ID
+        
+        // Save to database
+        const savedInsight = await Insight.create(insightData);
+        
+        // Increment insight count
+        try {
+            await User.findByIdAndUpdate(req.user._id, {
+                $inc: { 'usage.insightsSavedThisMonth': 1, 'usage.dailyInsightsSaved': 1 }
+            });
+        } catch (countError) {
+            console.error(`Non-critical: Failed to increment insight count for user ${req.user._id}:`, countError);
+        }
+        
+        return res.status(201).json({
+            success: true,
+            message: 'Search result saved as insight successfully',
+            data: savedInsight
+        });
+        
+    } catch (error) {
+        console.error('Error in saveSearchAsInsight:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Server error when saving insight'
+        });
     }
 };
