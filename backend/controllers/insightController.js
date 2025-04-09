@@ -19,7 +19,7 @@ exports.createInsight = async (req, res) => {
     }
 
     // Check if type is valid
-    const validTypes = ['trend', 'news', 'idea', 'search_result'];
+    const validTypes = ['trend', 'news', 'idea', 'search_result','seo_result'];
     if (!validTypes.includes(type)) {
       return res.status(400).json({
         success: false,
@@ -278,3 +278,92 @@ exports.deleteInsight = async (req, res) => {
     });
   }
 };
+
+
+// @desc    Save an SEO analysis result as an insight
+// @route   POST /api/insights/from-seo
+// @access  Private
+exports.saveSeoReportAsInsight = async (req, res) => {
+    try {
+      // Input: Expecting seoData object. Title is now optional at top level.
+      // Use 'providedTitle' to distinguish from the final title we use.
+      const { title: providedTitle, seoData, sourceQuery, notes, tags: customTags } = req.body;
+
+      // --- Validation for seoData ---
+      // Validate seoData structure minimally first.
+      // We also need suggestedSaveTitle inside seoData if providedTitle is missing.
+      if (!seoData || typeof seoData !== 'object' ||
+          !seoData.suggestedKeywords || !seoData.optimizedTitles ||
+          !seoData.optimizedDescription || !seoData.suggestedHashtags) {
+          // Removed check for seoData.suggestedSaveTitle here, will handle fallback below
+          return res.status(400).json({ success: false, message: 'Valid seoData object with core SEO suggestions is required.' });
+      }
+
+      // --- Determine the Title ---
+      let insightTitle = providedTitle?.trim(); // Use provided title if exists and not just whitespace
+
+      // If no title provided in request body, try using the one from seoData
+      if (!insightTitle && seoData.suggestedSaveTitle) {
+          insightTitle = seoData.suggestedSaveTitle.trim();
+      }
+
+      // If still no title (neither provided nor generated), create a fallback
+      if (!insightTitle) {
+          const fallbackDate = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric'}); // e.g., 09 Apr 2025
+          insightTitle = `SEO Report - ${fallbackDate}`;
+          console.warn("No title provided or generated for SEO Insight, using fallback:", insightTitle);
+      }
+      // --- End Determine the Title ---
+
+
+      // --- Prepare Insight Data ---
+      // Auto-generate some tags from suggested keywords if no custom tags provided
+      let insightTags = [];
+      if (customTags && Array.isArray(customTags)) {
+          insightTags = customTags.slice(0, 10); // Limit custom tags
+      } else if (seoData.suggestedKeywords && seoData.suggestedKeywords.length > 0) {
+          // Take top 5-8 suggested keywords as tags
+          insightTags = seoData.suggestedKeywords.slice(0, 8).map(tag => tag.toLowerCase());
+      }
+
+      const insightToSave = {
+        userId: req.user._id,
+        type: 'seo_result', // Specific type
+        title: insightTitle, // Use the determined title
+        content: seoData, // Store the entire SEO analysis result object
+        source: {
+            name: "CreatorGenius SEO Tool",
+            query: sourceQuery || null // Store the original topic/query if provided
+        },
+        tags: insightTags,
+        notes: notes || ''
+      };
+
+      // --- Create Insight ---
+      const savedInsight = await Insight.create(insightToSave);
+
+      // --- Increment Usage Count (non-critical) ---
+      try {
+        await User.findByIdAndUpdate(req.user._id, {
+          $inc: { 'usage.insightsSavedThisMonth': 1 } // Increment monthly count
+        });
+      } catch (updateError) {
+        console.error(`Non-critical: Failed to update insights saved count for user ${req.user._id}:`, updateError);
+      }
+      // --- End Usage Count ---
+
+      return res.status(201).json({
+        success: true,
+        message: 'SEO report saved as insight successfully',
+        data: savedInsight
+      });
+
+    } catch (error) {
+      console.error('Error in saveSeoReportAsInsight:', error);
+      if (error.name === 'ValidationError') {
+        const messages = Object.values(error.errors).map(val => val.message);
+        return res.status(400).json({ success: false, message: messages.join(', ') });
+      }
+      return res.status(500).json({ success: false, message: 'Server error when saving SEO report insight' });
+    }
+}; // --- End of saveSeoReportAsInsight ---

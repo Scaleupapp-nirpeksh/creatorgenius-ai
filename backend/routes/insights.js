@@ -5,7 +5,8 @@ const {
   getInsights,
   getInsightById,
   updateInsight,
-  deleteInsight
+  deleteInsight,
+  saveSeoReportAsInsight
 } = require('../controllers/insightController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -23,5 +24,7 @@ router.route('/:id')
   .get(getInsightById)    // Get a specific insight
   .put(updateInsight)     // Update a specific insight
   .delete(deleteInsight); // Delete a specific insight
+
+router.post('/from-seo', saveSeoReportAsInsight); // POST /api/insights/from-seo
 
 module.exports = router;

@@ -13,7 +13,7 @@ const insightSchema = new mongoose.Schema({
     type: {
         type: String,
         required: true,
-        enum: ['trend', 'news', 'idea', 'search_result'],
+        enum: ['trend', 'news', 'idea', 'search_result' ,'seo_result'],
         index: true // Index for filtering by type
     },
     // Title of the insight
