@@ -8,6 +8,7 @@ const contentRoutes = require('./routes/content');
 const ideaRoutes = require('./routes/ideas');
 const calendarRoutes = require('./routes/calendar');
 const userRoutes  = require('./routes/users');
+const trendsRoutes = require('./routes/trends');
 
 // Connect to Database
 connectDB();
@@ -39,7 +40,7 @@ app.use('/api/content', contentRoutes);
 app.use('/api/ideas', ideaRoutes);
 app.use('/api/calendar', calendarRoutes); 
 app.use('/api/users', userRoutes); 
-
+app.use('/api/trends', trendsRoutes);
 // Basic route
 app.get('/', (req, res) => {
   res.send('CreatorGenius AI API Running!');
