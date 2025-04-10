@@ -88,7 +88,9 @@ const userSchema = new mongoose.Schema({
     // --- Existing Tracking ---
     ideationsThisMonth: { type: Number, default: 0 },
     refinementsThisMonth: { type: Number, default: 0 },
-    seoReportsThisMonth: { type: Number, default: 0 }, // Placeholder
+    seoReportsThisMonth: { type: Number, default: 0 }, 
+    scriptsGeneratedThisMonth: { type: Number, default: 0 },
+    scriptTransformationsThisMonth: { type: Number, default: 0 },
     // -- When was usage last reset (e.g., start of month/billing cycle)? --
     lastUsageReset: { type: Date, default: Date.now },
 

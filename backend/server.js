@@ -11,6 +11,7 @@ const userRoutes  = require('./routes/users');
 const trendsRoutes = require('./routes/trends');
 const insightRoutes = require('./routes/insights'); 
 const seoRoutes = require('./routes/seo'); 
+const scriptRoutes = require('./routes/scripts');
 
 // Connect to Database
 connectDB();
@@ -45,6 +46,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/trends', trendsRoutes);
 app.use('/api/insights', insightRoutes); 
 app.use('/api/seo', seoRoutes);
+app.use('/api/scripts', scriptRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
