@@ -19,7 +19,12 @@ connectDB();
 const app = express();
 
 // Configure CORS
-const allowedOrigins = ['http://localhost:3000']; // Add your deployed frontend URL later
+const allowedOrigins = [
+  'http://localhost:3000',  // Frontend web
+  'http://localhost:19006', // Expo web
+  'http://10.0.2.2:5001',   // Android emulator 
+  // Add any other origins you need
+];
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -55,7 +60,7 @@ app.get('/', (req, res) => {
 
 // Server Listener
 const PORT = process.env.PORT || 5001;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
 
 // Optional: Add basic error handling middleware
 app.use((err, req, res, next) => {
