@@ -1,7 +1,7 @@
 // backend/routes/ideas.js
 const express = require('express');
 // Add refineIdea to import
-const { saveIdea, getSavedIdeas, deleteIdea, refineIdea, getRefinementsForIdea } = require('../controllers/ideaController');
+const { saveIdea, getSavedIdeas, deleteIdea, refineIdea, getRefinementsForIdea,getIdeaById, updateIdea } = require('../controllers/ideaController');
 const { protect } = require('../middleware/authMiddleware');
 
 const router = express.Router();
@@ -13,6 +13,8 @@ router.route('/')
 
 // Route for specific idea operations (DELETE)
 router.route('/:id')
+    .get(getIdeaById) 
+    .put(updateIdea)
     .delete(deleteIdea);
 
 

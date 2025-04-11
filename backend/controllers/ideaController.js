@@ -307,3 +307,75 @@ exports.getRefinementsForIdea = async (req, res, next) => {
         res.status(500).json({ success: false, message: 'Server error while fetching refinements.' });
     }
 };
+
+
+exports.getIdeaById = async (req, res, next) => {
+    try {
+        const ideaId = req.params.id;
+
+        if (!mongoose.Types.ObjectId.isValid(ideaId)) {
+             return res.status(400).json({ success: false, message: 'Invalid idea ID format.' });
+        }
+
+        const idea = await SavedIdea.findOne({ 
+            _id: ideaId,
+            userId: req.user._id
+        });
+
+        if (!idea) {
+            return res.status(404).json({ success: false, message: `No saved idea found with ID ${ideaId}` });
+        }
+
+        res.status(200).json({ success: true, data: idea });
+    } catch (error) {
+        console.error("Error fetching idea:", error);
+        res.status(500).json({ success: false, message: 'Server error while fetching idea.' });
+    }
+};
+
+
+exports.updateIdea = async (req, res, next) => {
+    try {
+      const ideaId = req.params.id;
+      
+      if (!mongoose.Types.ObjectId.isValid(ideaId)) {
+        return res.status(400).json({ success: false, message: 'Invalid idea ID format.' });
+      }
+      
+      const idea = await SavedIdea.findOne({ 
+        _id: ideaId,
+        userId: req.user._id 
+      });
+      
+      if (!idea) {
+        return res.status(404).json({ success: false, message: `No saved idea found with ID ${ideaId}` });
+      }
+      
+      // Update allowable fields
+      const allowedFields = ['title', 'angle', 'tags', 'hook', 'structure_points', 'platform_suitability', 'intendedEmotion'];
+      const updateData = {};
+      
+      allowedFields.forEach(field => {
+        if (req.body[field] !== undefined) {
+          updateData[field] = req.body[field];
+        }
+      });
+      
+      const updatedIdea = await SavedIdea.findByIdAndUpdate(
+        ideaId,
+        updateData,
+        { new: true, runValidators: true }
+      );
+      
+      res.status(200).json({ success: true, data: updatedIdea });
+    } catch (error) {
+      console.error("Error updating idea:", error);
+      
+      if (error.name === 'ValidationError') {
+        const messages = Object.values(error.errors).map(val => val.message);
+        return res.status(400).json({ success: false, message: messages.join('. ') });
+      }
+      
+      res.status(500).json({ success: false, message: 'Server error while updating idea.' });
+    }
+  };
