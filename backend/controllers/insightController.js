@@ -342,15 +342,7 @@ exports.saveSeoReportAsInsight = async (req, res) => {
       // --- Create Insight ---
       const savedInsight = await Insight.create(insightToSave);
 
-      // --- Increment Usage Count (non-critical) ---
-      try {
-        await User.findByIdAndUpdate(req.user._id, {
-          $inc: { 'usage.insightsSavedThisMonth': 1 } // Increment monthly count
-        });
-      } catch (updateError) {
-        console.error(`Non-critical: Failed to update insights saved count for user ${req.user._id}:`, updateError);
-      }
-      // --- End Usage Count ---
+    
 
       return res.status(201).json({
         success: true,

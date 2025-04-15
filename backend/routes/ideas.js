@@ -1,30 +1,57 @@
 // backend/routes/ideas.js
+
 const express = require('express');
-// Add refineIdea to import
-const { saveIdea, getSavedIdeas, deleteIdea, refineIdea, getRefinementsForIdea,getIdeaById, updateIdea } = require('../controllers/ideaController');
+const {
+  saveIdea,
+  getSavedIdeas,
+  deleteIdea,
+  refineIdea,
+  getRefinementsForIdea,
+  getIdeaById,
+  updateIdea
+} = require('../controllers/ideaController');
+
 const { protect } = require('../middleware/authMiddleware');
+const { 
+  storageLimit,
+  monthlyLimit,
+  resetCounters
+} = require('../middleware/usageLimitMiddleware');
+
+const SavedIdea = require('../models/SavedIdea');
 
 const router = express.Router();
-router.use(protect); // Apply protect to all
 
+// 1) Protect all routes
+router.use(protect);
+
+// 2) Reset counters so daily/monthly usage is fresh
+router.use(resetCounters);
+
+// 3) Create + Retrieve saved ideas
 router.route('/')
-    .post(saveIdea)
-    .get(getSavedIdeas);
+  .post(
+    // Apply storage limit so free tier can't exceed X saved ideas
+    storageLimit(SavedIdea, 'saved ideas', 'savedIdeas'),
+    saveIdea
+  )
+  .get(getSavedIdeas);
 
-// Route for specific idea operations (DELETE)
+// 4) Single idea CRUD
 router.route('/:id')
-    .get(getIdeaById) 
-    .put(updateIdea)
-    .delete(deleteIdea);
+  .get(getIdeaById)
+  .put(updateIdea)
+  .delete(deleteIdea);
 
-
-// This needs to be specific enough not to clash with /:id for GET/PUT if added later
+// 5) Refinements - monthly usage limit
 router.route('/:id/refine')
-    .post(refineIdea); // POST /api/ideas/:id/refine
+  .post(
+    monthlyLimit('refinements'), 
+    refineIdea
+  );
 
-// Add route for getting refinements
+// 6) Get all refinements for an idea
 router.route('/:id/refinements')
-    .get(getRefinementsForIdea); // GET /api/ideas/:id/refinements
-
+  .get(getRefinementsForIdea);
 
 module.exports = router;

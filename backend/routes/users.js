@@ -10,7 +10,8 @@ const {
     getAllUsers,      // Admin
     getUserById,      // Admin
     updateUser,       // Admin
-    deleteUser        // Admin
+    deleteUser  ,
+    getUserUsage      // Admin
 } = require('../controllers/userController');
 
 // Import Middleware
@@ -49,5 +50,7 @@ router.route('/:id')
     .put(protect, authorize('admin'), updateUser)        // PUT /api/users/:id
     .delete(protect, authorize('admin'), deleteUser);     // DELETE /api/users/:id
 
+
+    router.get('/me/usage', protect, getUserUsage); 
 // Export the router
 module.exports = router;

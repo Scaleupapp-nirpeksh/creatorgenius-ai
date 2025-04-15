@@ -8,20 +8,26 @@ const {
   deleteScheduledIdea
 } = require('../controllers/calendarController');
 const { protect } = require('../middleware/authMiddleware');
+const { storageLimit, resetCounters } = require('../middleware/usageLimitMiddleware');
+const ScheduledIdea = require('../models/ScheduledIdea');
 
 const router = express.Router();
 
 // Apply auth middleware to all routes
 router.use(protect);
 
+// Apply resetCounters to ensure usage stats are current
+router.use(resetCounters);
+
 // Routes
 router.route('/')
-  .post(scheduleIdea)     // Schedule a new idea
-  .get(getScheduledIdeas); // Get all scheduled ideas
+  // Apply storageLimit middleware to POST requests to enforce max scheduled items
+  .post(storageLimit(ScheduledIdea, 'scheduled items', 'calendarItems'), scheduleIdea)
+  .get(getScheduledIdeas);
 
 router.route('/:id')
-  .get(getScheduledIdea)       // Get a specific scheduled idea
-  .put(updateScheduledIdea)    // Update a scheduled idea
-  .delete(deleteScheduledIdea); // Delete a scheduled idea
+  .get(getScheduledIdea)
+  .put(updateScheduledIdea)
+  .delete(deleteScheduledIdea);
 
 module.exports = router;

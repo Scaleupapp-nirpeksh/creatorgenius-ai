@@ -185,15 +185,7 @@ exports.generateScript = async (req, res) => {
             // Validate with Zod
             const scriptData = scriptSchema.parse(parsedResponse);
             
-            // Track usage (non-critical operation)
-            try {
-                await User.findByIdAndUpdate(userId, { 
-                    $inc: { 'usage.scriptsGeneratedThisMonth': 1 } 
-                });
-            } catch (usageError) {
-                console.error("Error updating usage metrics:", usageError);
-                // Non-critical - continue execution
-            }
+           
 
             // Return successful response
             res.status(200).json({
@@ -571,14 +563,7 @@ exports.transformScript = async (req, res) => {
         const transformedScripts = transformationResults.filter(result => !result.error);
         const failedTransformations = transformationResults.filter(result => result.error);
         
-        // Track usage (non-critical) - only count successful transformations
-        try {
-            await User.findByIdAndUpdate(req.user._id, { 
-                $inc: { 'usage.scriptTransformationsThisMonth': transformedScripts.length } 
-            });
-        } catch (usageError) {
-            console.error("Error updating usage metrics:", usageError);
-        }
+        
         
         // Return successful response with all transformations
         res.status(200).json({

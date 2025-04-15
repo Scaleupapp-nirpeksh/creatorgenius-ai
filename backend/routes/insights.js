@@ -9,22 +9,37 @@ const {
   saveSeoReportAsInsight
 } = require('../controllers/insightController');
 const { protect } = require('../middleware/authMiddleware');
+const { dailyLimit, storageLimit, resetCounters } = require('../middleware/usageLimitMiddleware');
+const Insight = require('../models/Insight');
 
 const router = express.Router();
 
 // Apply auth middleware to all routes
 router.use(protect);
 
+// Apply resetCounters to ensure usage stats are current
+router.use(resetCounters);
+
 // Routes
 router.route('/')
-  .post(createInsight)  // Create a new insight
-  .get(getInsights);    // Get all insights for the user
+  // Apply daily limit to insights saved per day and storage limit for max insights
+  .post(
+    dailyLimit('insightsSaved'), 
+    storageLimit(Insight, 'insights', 'insightsTotal'),
+    createInsight
+  )
+  .get(getInsights);
 
 router.route('/:id')
-  .get(getInsightById)    // Get a specific insight
-  .put(updateInsight)     // Update a specific insight
-  .delete(deleteInsight); // Delete a specific insight
+  .get(getInsightById)
+  .put(updateInsight)
+  .delete(deleteInsight);
 
-router.post('/from-seo', saveSeoReportAsInsight); // POST /api/insights/from-seo
+// Apply daily insight limit to SEO report saving
+router.post('/from-seo', 
+  dailyLimit('insightsSaved'), 
+  storageLimit(Insight, 'insights', 'insightsTotal'),
+  saveSeoReportAsInsight
+);
 
 module.exports = router;

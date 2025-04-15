@@ -82,42 +82,6 @@ exports.queryTrends = async (req, res, next) => {
         return res.status(400).json({ success: false, message: 'Please provide a valid search query.' });
     }
 
-    let user; // Define user variable in the outer scope
-
-    // --- Usage Limit Check ---
-    if (userTier === 'free') {
-        try {
-            user = await User.findById(userId).select('+usage'); // Select usage field
-            if (!user) return res.status(404).json({ success: false, message: 'User not found.' }); // Should not happen
-
-            let { dailySearchCount = 0, lastSearchReset = new Date(0) } = user.usage || {}; // Default if usage obj is missing
-
-            // Reset daily count if last reset was before today
-            if (isBeforeToday(lastSearchReset)) {
-                console.log(`Resetting daily search count for user ${userId}`);
-                dailySearchCount = 0;
-                lastSearchReset = new Date(); // Set to now
-                // Update reset time immediately (can be done later too)
-                 await User.findByIdAndUpdate(userId, {
-                     'usage.dailySearchCount': 0,
-                     'usage.lastSearchReset': lastSearchReset
-                 });
-            }
-
-            // Check limit
-            if (dailySearchCount >= FREE_USER_DAILY_SEARCH_LIMIT) {
-                console.log(`User ${userId} exceeded daily search limit.`);
-                return res.status(429).json({ success: false, message: `Daily search limit (${FREE_USER_DAILY_SEARCH_LIMIT}) reached for free users.` });
-            }
-
-            // If limit not reached, we will increment later *after* successful API call
-
-        } catch (limitError) {
-             console.error(`Error checking usage limits for user ${userId}:`, limitError);
-             return res.status(500).json({ success: false, message: 'Error checking usage limits.' });
-        }
-    }
-    // --- End Usage Limit Check ---
 
 
     // --- Call Google Search API ---
@@ -149,25 +113,7 @@ exports.queryTrends = async (req, res, next) => {
             // Add other fields if needed, like item.pagemap?.cse_thumbnail?.[0]?.src
         }));
 
-        // --- Increment Usage Count for Free Users (AFTER successful API call) ---
-        if (userTier === 'free' && user) { // Ensure user was fetched earlier
-            try {
-                 const updatedUserUsage = await User.findByIdAndUpdate(
-                     userId,
-                     {
-                         $inc: { 'usage.dailySearchCount': 1 },
-                         'usage.lastSearchReset': user.usage.lastSearchReset || new Date() // Ensure reset time is set if it was just reset
-                     },
-                     { new: true } // Return updated document if needed
-                 ).select('usage'); // Select only usage to log if needed
-                 console.log(`Incremented search count for user ${userId}. New count: ${updatedUserUsage?.usage?.dailySearchCount}`);
-
-            } catch (incrementError) {
-                 console.error(`Non-critical: Failed to increment search count for user ${userId}:`, incrementError);
-                 // Log but don't fail the request just because count didn't increment
-            }
-        }
-        // --- End Increment Usage Count ---
+       
 
         // --- NEW: Save result as insight if requested ---
         let savedInsight = null;
@@ -250,14 +196,7 @@ exports.saveSearchAsInsight = async (req, res) => {
         // Save to database
         const savedInsight = await Insight.create(insightData);
         
-        // Increment insight count
-        try {
-            await User.findByIdAndUpdate(req.user._id, {
-                $inc: { 'usage.insightsSavedThisMonth': 1, 'usage.dailyInsightsSaved': 1 }
-            });
-        } catch (countError) {
-            console.error(`Non-critical: Failed to increment insight count for user ${req.user._id}:`, countError);
-        }
+        
         
         return res.status(201).json({
             success: true,

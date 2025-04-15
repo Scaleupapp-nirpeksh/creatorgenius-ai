@@ -1,9 +1,8 @@
 // backend/controllers/contentController.js
 const { OpenAI } = require("openai");
-// Ensure dotenv is configured early in your entry point (e.g., server.js)
-// require('dotenv').config(); // Usually not needed here if loaded in server.js
 const User = require('../models/User'); // Import User model for usage tracking
 const { z } = require("zod"); // Import Zod for validation
+const usageUtil = require('../utils/usageUtil'); // Import the usage utility
 
 // --- ZOD Schema Definition ---
 const ideaSchema = z.object({
@@ -36,21 +35,6 @@ if (process.env.OPENAI_API_KEY) {
     openai = null;
 }
 // --- End OpenAI Client Initialization ---
-
-
-// --- Helper Functions ---
-const isBeforeToday = (date) => {
-  if (!date) return false;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return new Date(date) < today;
-};
-// --- End Helper Functions ---
-
-
-// --- Constants ---
-const FREE_USER_DAILY_TREND_IDEATION_LIMIT = 3; // Example limit
-// --- End Constants ---
 
 
 // @desc    Generate Enhanced Content Ideas using AI
@@ -131,9 +115,13 @@ Ensure the entire output is valid JSON, starting with { and ending with }.`;
         return res.status(500).json({ success: false, message: "AI response format error.", details: error instanceof z.ZodError ? error.errors : error.message, raw_content: rawContent });
     }
 
-    // Increment usage (non-critical)
-    try { await User.findByIdAndUpdate(userId, { $inc: { 'usage.ideationsThisMonth': 1 } }); }
-    catch (updateError) { console.error(`Non-critical: Failed usage update for ${userId}:`, updateError); }
+    // Increment usage counter - this is now handled by middleware, but keeping as backup
+    try {
+      await usageUtil.incrementUsageCounter(userId, 'monthly', 'contentIdeations');
+      console.log(`Successfully incremented ideation counter for user ${userId}`);
+    } catch (updateError) {
+      console.error(`Non-critical: Failed usage update for ${userId}:`, updateError);
+    }
 
     // --- Success Response ---
     res.status(200).json({ success: true, message: `Generated ${validatedData.ideas.length} ideas successfully.`, data: validatedData.ideas });
@@ -153,12 +141,12 @@ exports.generateTrendIdeas = async (req, res, next) => {
   if (!openai) return res.status(500).json({ success: false, message: 'AI service is not configured.' });
 
   // --- Input & User Context ---
-  const userId = req.user?.id;
-  const userTier = req.user?.subscriptionTier;
+  const userId = req.user?.id || req.user?._id; // Handle both id and _id formats
+  const userTier = req.user?.subscriptionTier || 'free';
   const userName = req.user?.name;
   const userInterests = req.user?.interests || [];
 
-  if (!userId || !userTier || !userName) return res.status(401).json({ success: false, message: 'User information not found.' });
+  if (!userId || !userName) return res.status(401).json({ success: false, message: 'User information not found.' });
 
   const {
       trendDescription, platform, language,
@@ -170,30 +158,8 @@ exports.generateTrendIdeas = async (req, res, next) => {
   if (!trendDescription || typeof trendDescription !== 'string' || trendDescription.trim() === '') return res.status(400).json({ success: false, message: 'Please provide trend description.' });
   if (numberOfIdeas < 1 || numberOfIdeas > 5) return res.status(400).json({ success: false, message: 'Number of ideas must be 1-5.' });
 
-  let user; // For usage tracking state
-
-  // --- Usage Limit Check ---
-  if (userTier === 'free') {
-      try {
-          user = await User.findById(userId).select('+usage');
-          if (!user) return res.status(404).json({ success: false, message: 'User not found for usage check.' });
-          let { dailyTrendIdeations = 0, lastSearchReset = new Date(0) } = user.usage || {};
-          let needsReset = isBeforeToday(lastSearchReset);
-          if (needsReset) {
-              console.log(`Resetting daily trend ideation count for user ${userId}`);
-              dailyTrendIdeations = 0;
-              await User.findByIdAndUpdate(userId, { 'usage.dailyTrendIdeations': 0, 'usage.lastSearchReset': new Date() }, { new: false });
-          }
-          if (dailyTrendIdeations >= FREE_USER_DAILY_TREND_IDEATION_LIMIT) {
-              console.log(`User ${userId} exceeded daily trend ideation limit.`);
-              return res.status(429).json({ success: false, message: `Daily trend ideation limit (${FREE_USER_DAILY_TREND_IDEATION_LIMIT}) reached.` });
-          }
-      } catch (limitError) {
-          console.error(`Error checking trend ideation limits for user ${userId}:`, limitError);
-          return res.status(500).json({ success: false, message: 'Error checking usage limits.' });
-       }
-  }
-  // --- End Usage Limit Check ---
+  // Note: Usage limits are now checked by middleware before this controller runs
+  // The middleware will return a 429 error if limits are exceeded
 
   // --- Construct Prompt ---
   const currentDate = new Date().toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); // Current Date: Wednesday, 9 April 2025
@@ -245,10 +211,12 @@ Ensure the entire output is valid JSON, starting with { and ending with }.`;
            return res.status(500).json({ success: false, message: "AI response format error.", details: error instanceof z.ZodError ? error.errors : error.message, raw_content: rawContent });
       }
 
-      // Increment usage (non-critical)
-      if (userTier === 'free') {
-          try { await User.findByIdAndUpdate(userId, { $inc: { 'usage.dailyTrendIdeations': 1 } }); }
-          catch (incrementError) { console.error(`Non-critical: Failed usage update for ${userId}:`, incrementError); }
+      // Increment usage counter - this is now handled by middleware, but keeping as backup
+      try {
+          await usageUtil.incrementUsageCounter(userId, 'daily', 'trendIdeations');
+          console.log(`Successfully incremented trend ideation counter for user ${userId}`);
+      } catch (incrementError) {
+          console.error(`Non-critical: Failed usage update for ${userId}:`, incrementError);
       }
 
       // --- Success Response ---

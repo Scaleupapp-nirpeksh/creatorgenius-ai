@@ -84,45 +84,7 @@ exports.analyzeContentSeo = async (req, res, next) => {
 
     let user; // Variable to hold user data for usage check if needed
 
-    // --- Usage Limit Check for Free Users ---
-    if (userTier === 'free') {
-        try {
-            // Fetch user specifically selecting the usage field
-            user = await User.findById(userId).select('+usage');
-            if (!user) {
-                // Edge case: user deleted between token validation and now
-                return res.status(404).json({ success: false, message: 'User not found for usage check.' });
-            }
-
-            // Safely access usage fields with defaults
-            let { dailySeoAnalyses = 0, lastSearchReset = new Date(0) } = user.usage || {};
-
-            // Check if the daily reset timestamp is before today
-            let needsReset = isBeforeToday(lastSearchReset);
-            if (needsReset) {
-                console.log(`Resetting all daily counts for user ${userId} (SEO Analysis Trigger)`);
-                dailySeoAnalyses = 0; // Reset counter for check
-                // Update all daily counts and reset timestamp in DB
-                // Run this update non-blockingly or handle potential errors gracefully
-                await User.findByIdAndUpdate(userId, {
-                   'usage.dailySearchCount': 0,
-                   'usage.dailyTrendIdeations': 0,
-                   'usage.dailySeoAnalyses': 0, // Reset this one
-                   'usage.lastSearchReset': new Date() // Update to now
-                }, { new: false }).catch(err => console.error(`Failed to reset daily counts for user ${userId}`, err)); // Log error if reset fails but continue
-            }
-
-            // Check if limit is exceeded AFTER potential reset
-            if (dailySeoAnalyses >= FREE_USER_DAILY_SEO_LIMIT) {
-                console.log(`User ${userId} exceeded daily SEO analysis limit.`);
-                return res.status(429).json({ success: false, message: `Daily SEO analysis limit (${FREE_USER_DAILY_SEO_LIMIT}) reached for free tier.` });
-            }
-        } catch (limitError) {
-            console.error(`Error checking/resetting SEO analysis limits for user ${userId}:`, limitError);
-            return res.status(500).json({ success: false, message: 'Server error checking usage limits.' });
-        }
-    }
-    // --- End Usage Limit Check ---
+   
 
 
     // --- Construct Prompt for OpenAI ---
@@ -192,18 +154,7 @@ Ensure the entire response is a single, valid JSON object starting with { and en
         }
         // --- End Parse and Validate ---
 
-        // --- Increment Usage Count for Free Users (After Successful Call & Validation) ---
-        if (userTier === 'free') {
-            try {
-                // Increment the counter for this specific feature
-                await User.findByIdAndUpdate(userId, { $inc: { 'usage.dailySeoAnalyses': 1 } });
-                console.log(`Incremented SEO analysis count for user ${userId}.`);
-            } catch (incrementError) {
-                // Log error but don't fail the request just for this
-                console.error(`Non-critical: Failed to increment SEO usage count for user ${userId}:`, incrementError);
-            }
-        }
-        // --- End Increment Usage Count ---
+        
 
         // --- Success Response ---
         // Send the validated data object, which now includes suggestedSaveTitle

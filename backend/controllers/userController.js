@@ -4,6 +4,8 @@ const SavedIdea = require('../models/SavedIdea'); // Needed for cascade delete
 const Refinement = require('../models/Refinement'); // Needed for cascade delete
 const ScheduledIdea = require('../models/ScheduledIdea'); // Needed for cascade delete
 const mongoose = require('mongoose');
+const limitConfig = require('../config/limitConfig');
+const { getFieldNameForFeature } = require('../utils/usageUtil'); // So we can see the DB fields
 
 // --- Helper Function for Input Validation/Filtering ---
 // (Could be expanded or moved to a utility file)
@@ -328,3 +330,69 @@ exports.deleteUser = async (req, res, next) => {
         res.status(500).json({ success: false, message: 'Server error while deleting user.' });
     }
 };
+
+
+exports.getUserUsage = async (req, res) => {
+    try {
+      const user = await User.findById(req.user._id).select('subscriptionTier usage');
+      if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+  
+      const tier = user.subscriptionTier || 'free';
+      const dailyUsage = {};
+      const dailyLimits = limitConfig[tier].daily || {};
+  
+      for (let featureKey of Object.keys(dailyLimits)) {
+        const dbField = getFieldNameForFeature('daily', featureKey);
+        const currentVal = user.usage[dbField] || 0;
+        const limitVal = dailyLimits[featureKey];
+        if (limitVal < 0) {
+          dailyUsage[featureKey] = { current: currentVal, limit: 'unlimited', remaining: 'unlimited' };
+        } else {
+          dailyUsage[featureKey] = {
+            current: currentVal,
+            limit: limitVal,
+            remaining: Math.max(0, limitVal - currentVal)
+          };
+        }
+      }
+  
+      const monthlyUsage = {};
+      const monthlyLimits = limitConfig[tier].monthly || {};
+  
+      for (let featureKey of Object.keys(monthlyLimits)) {
+        const dbField = getFieldNameForFeature('monthly', featureKey);
+        const currentVal = user.usage[dbField] || 0;
+        const limitVal = monthlyLimits[featureKey];
+        if (limitVal < 0) {
+          monthlyUsage[featureKey] = { current: currentVal, limit: 'unlimited', remaining: 'unlimited' };
+        } else {
+          monthlyUsage[featureKey] = {
+            current: currentVal,
+            limit: limitVal,
+            remaining: Math.max(0, limitVal - currentVal)
+          };
+        }
+      }
+  
+      // For permanent usage, you can do DB counts or just show the limit
+      const permanentUsage = {};
+      const permLimits = limitConfig[tier].permanent || {};
+      for (let featureKey of Object.keys(permLimits)) {
+        const limitVal = permLimits[featureKey];
+        if (limitVal < 0) {
+          permanentUsage[featureKey] = { limit: 'unlimited' };
+        } else {
+          permanentUsage[featureKey] = { limit: limitVal };
+        }
+      }
+  
+      return res.status(200).json({
+        success: true,
+        data: { daily: dailyUsage, monthly: monthlyUsage, permanent: permanentUsage }
+      });
+  
+    } catch (err) {
+      console.error('Error in getUserUsage:', err);
+      return res.status(500).json({ success: false, message: 'Server error retrieving usage' });
+    }
+  };
