@@ -13,6 +13,7 @@ const insightRoutes = require('./routes/insights');
 const seoRoutes = require('./routes/seo'); 
 const scriptRoutes = require('./routes/scripts');
 const feedbackRoutes = require('./routes/feedback');
+const paymentRoutes = require('./routes/payments');
 
 
 // Connect to Database
@@ -55,6 +56,8 @@ app.use('/api/insights', insightRoutes);
 app.use('/api/seo', seoRoutes);
 app.use('/api/scripts', scriptRoutes);
 app.use('/api/feedback', feedbackRoutes);
+app.use('/api/payments', paymentRoutes);
+
 
 // Basic route
 app.get('/', (req, res) => {
