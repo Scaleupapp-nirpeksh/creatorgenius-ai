@@ -1235,15 +1235,4 @@ const handleSubscriptionCancelled = async (subscription) => {
     }
   };
   
-  module.exports = {
-    getSubscriptionPlans,
-    createSubscription,
-    verifyPayment,
-    handleWebhook,
-    getUserSubscription,
-    cancelSubscription,
-    getPaymentHistory,
-    generateInvoice,
-    updatePaymentMethod,
-    requestRefund
-  };
+  
