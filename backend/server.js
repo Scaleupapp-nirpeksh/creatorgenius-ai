@@ -83,7 +83,7 @@ app.get('/', (req, res) => {
 });
 
 // Server Listener
-const PORT = process.env.PORT || 5001;
+const PORT = process.env.PORT || 8080; 
 app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
 
 // Optional: Add basic error handling middleware
