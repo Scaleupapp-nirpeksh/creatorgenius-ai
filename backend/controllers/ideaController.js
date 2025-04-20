@@ -5,6 +5,7 @@ const mongoose = require('mongoose');
 const { OpenAI } = require("openai"); 
 const User = require('../models/User');
 const Refinement = require('../models/Refinement');
+const { withRetry } = require('../utils/aiUtils');
 
 // --- Initialize OpenAI Client ---
 let openai;
@@ -217,15 +218,16 @@ exports.refineIdea = async (req, res, next) => {
     userPrompt += `\n**Output Format:** ${responseFormatInstruction}`;
 
     // OpenAI API call
+
     console.log(`Refining idea ${ideaId} for user ${userId}. Type: ${refinementType}`);
-    const response = await openai.chat.completions.create({
+    const response = await withRetry(() => openai.chat.completions.create({
       model: "gpt-3.5-turbo",
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
       ],
       temperature: 0.7,
-    });
+    }));
 
     const rawContent = response.choices[0]?.message?.content;
     if (!rawContent) {

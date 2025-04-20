@@ -3,6 +3,7 @@ const { OpenAI } = require("openai");
 const User = require('../models/User'); // Import User model for usage tracking
 const { z } = require("zod"); // Import Zod for validation
 const usageUtil = require('../utils/usageUtil'); // Import the usage utility
+const { withRetry } = require('../utils/aiUtils');
 
 // --- ZOD Schema Definition ---
 const ideaSchema = z.object({
@@ -97,10 +98,12 @@ Ensure the entire output is valid JSON, starting with { and ending with }.`;
   // --- API Call & Processing ---
   try {
     console.log(`Generating ${numberOfIdeas} ideas for user ${userId} (${userName}). Input:`, req.body);
-    const response = await openai.chat.completions.create({
-      model: modelToUse, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
-      temperature: 0.75, response_format: { type: "json_object" },
-    });
+    const response = await withRetry(() => openai.chat.completions.create({
+      model: modelToUse,
+      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
+      temperature: 0.75,
+      response_format: { type: "json_object" },
+    }));
     const rawContent = response.choices[0]?.message?.content;
     if (!rawContent) throw new Error("No content received from OpenAI.");
     console.log("Raw content string:", rawContent);
@@ -193,10 +196,7 @@ Ensure the entire output is valid JSON, starting with { and ending with }.`;
   // --- API Call & Processing ---
   try {
       console.log(`Generating ${numberOfIdeas} trend ideas for user ${userId}. Trend: "${trendDescription}"`);
-      const response = await openai.chat.completions.create({
-          model: "gpt-3.5-turbo", messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }],
-          temperature: 0.8, response_format: { type: "json_object" },
-      });
+      const response = await withRetry(() => openai.chat.completions.create({ model: gpt-3.5-turbo, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], temperature: 0.75, response_format: { type: "json_object" }, }));
       const rawContent = response.choices[0]?.message?.content;
       if (!rawContent) throw new Error("No content from OpenAI for trend ideation.");
       console.log("Raw trend ideation content string:", rawContent);

@@ -2,7 +2,7 @@
 const { OpenAI } = require("openai");
 const User = require('../models/User'); // For usage tracking
 const { z } = require("zod"); // For validation
-
+const { withRetry } = require('../utils/aiUtils');
 // --- Initialize OpenAI Client ---
 // Ensure OPENAI_API_KEY is loaded from .env in your main server file (server.js)
 let openai;
@@ -117,7 +117,7 @@ Ensure the entire response is a single, valid JSON object starting with { and en
     // --- API Call & Processing ---
     try {
         console.log(`Performing SEO Analysis for user ${userId}. Platform: ${targetPlatform}, Language: ${language}.`);
-        const response = await openai.chat.completions.create({
+        const response = await withRetry(() =>openai.chat.completions.create({
             model: "gpt-3.5-turbo", // Consider GPT-4 for potentially better SEO nuances and consistency
             messages: [
                 { role: "system", content: systemPrompt },
@@ -125,7 +125,7 @@ Ensure the entire response is a single, valid JSON object starting with { and en
             ],
             temperature: 0.5, // Lower temperature for more focused, less overly creative SEO suggestions
             response_format: { type: "json_object" },
-        });
+        }));
 
         const rawContent = response.choices[0]?.message?.content;
         if (!rawContent) {

@@ -5,7 +5,7 @@ const User = require('../models/User'); // For usage tracking
 const SavedIdea = require('../models/SavedIdea'); // To access idea details
 const Script = require('../models/Script'); // Import the Script model
 const { z } = require("zod"); // For validation
-
+const { withRetry } = require('../utils/aiUtils');
 // Initialize OpenAI client (similar to other controllers)
 let openai;
 if (process.env.OPENAI_API_KEY) {
@@ -121,7 +121,7 @@ exports.generateScript = async (req, res) => {
         RETURN YOUR RESPONSE AS A VALID JSON OBJECT, WITH NO ADDITIONAL TEXT OR EXPLANATIONS.`;
 
         // Call OpenAI API - REMOVED response_format parameter
-        const response = await openai.chat.completions.create({
+        const response = await withRetry(() => openai.chat.completions.create({
             model: "gpt-3.5-turbo", // Using a model definitely available
             messages: [
                 { role: "system", content: systemPrompt },
@@ -129,7 +129,7 @@ exports.generateScript = async (req, res) => {
             ],
             temperature: 0.7
             // No response_format parameter
-        });
+        }));
 
         // Extract and validate the response
         const responseContent = response.choices[0]?.message?.content;
@@ -475,7 +475,7 @@ exports.transformScript = async (req, res) => {
             IMPORTANT: Your response should ONLY be the JSON object, with no additional text, markdown formatting, or explanations.`;
             
             // Call OpenAI API for this platform - REMOVED response_format parameter
-            const response = await openai.chat.completions.create({
+            const response = await withRetry(() =>openai.chat.completions.create({
                 model: "gpt-3.5-turbo", // Using a model that's definitely available
                 messages: [
                     { role: "system", content: systemPrompt },
@@ -483,7 +483,7 @@ exports.transformScript = async (req, res) => {
                 ],
                 temperature: 0.7
                 // No response_format parameter
-            });
+            }));
             
             // Parse and validate response with better error handling
             const responseContent = response.choices[0]?.message?.content;

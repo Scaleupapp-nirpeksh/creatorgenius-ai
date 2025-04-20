@@ -21,24 +21,42 @@ connectDB();
 
 const app = express();
 
-// Configure CORS
+// Updated CORS configuration in server.js
 const allowedOrigins = [
-  'http://localhost:3000',  // Frontend web
-  'http://localhost:19006', // Expo web
-  'http://10.0.2.2:5001',   // Android emulator 
-  // Add any other origins you need
+  // Development origins
+  'http://localhost:3000',
+  'http://localhost:19006',
+  'http://10.0.2.2:5001',
+  
+  // Production origins
+  'https://api.creatorgenius.app',
+  'https://creatorgenius.app',
+  'https://www.creatorgenius.app',
+  '.creatorgenius.app', // Allow all subdomains
+  
+  // Mobile app origins
+  'capacitor://localhost',
+  'ionic://localhost'
 ];
+
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) === -1) {
+    // Allow requests with no origin (like mobile apps, curl requests, etc.)
+    if (!origin || allowedOrigins.some(allowed => {
+      if (allowed.startsWith('.') && origin.endsWith(allowed.substring(1))) {
+        return true;
+      }
+      return origin === allowed;
+    })) {
+      callback(null, true);
+    } else {
       const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      return callback(new Error(msg), false);
+      callback(new Error(msg), false);
     }
-    return callback(null, true);
   },
-  credentials: true // Optional: If you need to send cookies or authorization headers
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
 app.use(cors(corsOptions));
 
