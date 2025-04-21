@@ -21,43 +21,39 @@ connectDB();
 
 const app = express();
 
-// Updated CORS configuration in server.js
+// Update your CORS configuration in server.js
 const allowedOrigins = [
-  // Development origins
   'http://localhost:3000',
   'http://localhost:19006',
   'http://10.0.2.2:5001',
-  
-  // Production origins
-  'https://api.creatorgenius.app',
-  'https://creatorgenius.app',
-  'https://www.creatorgenius.app',
-  '.creatorgenius.app', // Allow all subdomains
-  
-  // Mobile app origins
+  // Add your Elastic Beanstalk domain
+  'https://creator-genius-env-2.eba-8xmj6etz.ap-south-1.elasticbeanstalk.com',
+  // Allow mobile app origins
   'capacitor://localhost',
-  'ionic://localhost'
+  'ionic://localhost',
+  // Allow all origins for mobile app (careful with this in production)
+  // Remove this in production if you want stricter security
+  '*'
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl requests, etc.)
-    if (!origin || allowedOrigins.some(allowed => {
-      if (allowed.startsWith('.') && origin.endsWith(allowed.substring(1))) {
-        return true;
-      }
-      return origin === allowed;
-    })) {
-      callback(null, true);
-    } else {
-      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
-      callback(new Error(msg), false);
+    // Allow requests with no origin (like mobile apps)
+    if (!origin || allowedOrigins.includes('*')) {
+      return callback(null, true);
     }
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 };
+
 app.use(cors(corsOptions));
 
 // Middleware
